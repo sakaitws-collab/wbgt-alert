@@ -1,5 +1,5 @@
-import requests
-from bs4 import BeautifulSoup
+import os
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 # ===== 設定 =====
 URL = "https://www.wbgt.env.go.jp/graph_ref_tm.php?region=03&prefecture=44&point=44132&refId=3"
