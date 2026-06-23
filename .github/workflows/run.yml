@@ -3,6 +3,7 @@ name: WBGT Alert
 on:
   schedule:
     - cron: '30 9 * * *'  # 日本時間18:30
+  workflow_dispatch:       # ✅ これ追加
 
 jobs:
   run:
