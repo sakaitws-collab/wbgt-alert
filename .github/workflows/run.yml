@@ -2,8 +2,8 @@ name: WBGT Alert
 
 on:
   schedule:
-    - cron: '30 9 * * *'  # 日本時間18:30
-  workflow_dispatch:       # ✅ これ追加
+    - cron: '30 9 * * *'
+  workflow_dispatch:
 
 jobs:
   run:
@@ -22,5 +22,7 @@ jobs:
         pip install requests beautifulsoup4
 
     - name: 実行
+      env:
+        WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}   # ✅ これが超重要
       run: |
         python wbgt.py
