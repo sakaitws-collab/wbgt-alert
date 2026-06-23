@@ -1,9 +1,13 @@
+import requests
+from bs4 import BeautifulSoup
 import os
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 # ===== 設定 =====
 URL = "https://www.wbgt.env.go.jp/graph_ref_tm.php?region=03&prefecture=44&point=44132&refId=3"
-WEBHOOK_URL = "https://default08bb7afa6044483795caee99eb9784.4b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/963d83c9898541bfbfaa801149f47448/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=n6zvENvE2fWqkzo2trg_oAEv_i6rAU14v-oc_bM22qA"
+
+# ✅ GitHub Secretsから取得
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+
 
 # ===== WBGT取得 =====
 def get_wbgt():
@@ -16,25 +20,31 @@ def get_wbgt():
 
     for i, row in enumerate(rows):
         if "明日" in row.get_text():
+            # 明日の数値は次の行
             next_row = rows[i + 1]
             cols = next_row.find_all("td")
 
             for col in cols:
                 raw_text = col.get_text(strip=True)
 
+                # 数字だけ抜く
                 digits = "".join([c for c in raw_text if c.isdigit()])
+
+                # 2桁ずつ分割
                 split_vals = [digits[i:i+2] for i in range(0, len(digits), 2)]
 
                 for v in split_vals:
                     try:
                         val = float(v)
+                        # WBGTとしてあり得る範囲だけ
                         if 10 <= val <= 40:
                             tomorrow_values.append(val)
                     except:
                         pass
+
             break
 
-    # ✅ 8個に制限
+    # ✅ 最初の8個だけ使う
     tomorrow_values = tomorrow_values[:8]
 
     print("明日のWBGT:", tomorrow_values)
@@ -53,6 +63,7 @@ if wbgt is None:
     exit()
 
 print("最大WBGT:", wbgt)
+
 
 # ===== Teams通知 =====
 payload = {
@@ -76,4 +87,5 @@ payload = {
     ]
 }
 
-requests.post(WEBHOOK_URL, json=payload)
+response = requests.post(WEBHOOK_URL, json=payload)
+print("status:", response.status_code)
