@@ -73,4 +73,3 @@ response = requests.post(WEBHOOK_URL, json=payload)
 
 print("status:", response.status_code)
 print("response:", response.text)
-``
