@@ -1,56 +1,64 @@
 import requests
 from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
 import os
 
-URL = "https://www.wbgt.env.go.jp/wbgt_data.php"
+URL = "https://www.wbgt.env.go.jp/graph_ref_td.php?region=03&prefecture=44&point=44132&refId=3"
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 
-def get_wbgt():
+def get_tomorrow_max_wbgt():
     res = requests.get(URL)
     soup = BeautifulSoup(res.text, "html.parser")
 
-    tables = soup.find_all("table")
+    rows = soup.find_all("tr")
 
-    # ✅ 全テーブルから東京を探す
-    for table in tables:
-        for row in table.find_all("tr"):
+    # ✅ 明日の日付を作る（例: 6月26日）
+    tomorrow = datetime.now() + timedelta(days=1)
+    target_str = f"{tomorrow.month}月{tomorrow.day}日"
+
+    values = []
+    collecting = False
+
+    for row in rows:
+        text = row.get_text()
+
+        # ✅ 明日のブロック開始
+        if target_str in text:
+            collecting = True
+            print("明日ブロック開始:", text)
+            continue
+
+        # ✅ 次の日付が来たら終了
+        if collecting and ("月" in text and "日" in text):
+            print("次の日付検出 → 終了:", text)
+            break
+
+        # ✅ 明日のデータ収集
+        if collecting:
             cols = row.find_all("td")
 
-            if len(cols) < 2:
-                continue
+            if len(cols) >= 2:
+                raw = cols[1].get_text(strip=True)
 
-            place = cols[0].get_text(strip=True)
-
-            # ✅ 東京行を検出
-            if "東京" in place:
-                values = [c.get_text(strip=True) for c in cols]
-
-                print("東京行の中身:", values)
-
-                # ✅ 2列目（翌日）
-                raw = values[1]
-                print("翌日WBGT(raw):", raw)
-
-                # ✅ 空データ対応
-                if raw in ["", "--"]:
-                    print("データなし（未公開）")
-                    return None
-
-                # ✅ 数値変換
                 try:
-                    return float(raw)
+                    val = float(raw)
+                    if 10 <= val <= 40:  # WBGTの正常範囲
+                        values.append(val)
                 except:
-                    print("数値変換失敗:", raw)
-                    return None
+                    pass
 
-    print("東京が見つからない")
-    return None
+    print("明日のWBGT一覧:", values)
+
+    if not values:
+        return None
+
+    return max(values)
 
 
 # ===== 実行 =====
-wbgt = get_wbgt()
-print("WBGT:", wbgt)
+wbgt = get_tomorrow_max_wbgt()
+print("明日の最大WBGT:", wbgt)
 
 if wbgt is None:
     print("WBGT取得失敗 → 通知しない")
@@ -62,8 +70,6 @@ payload = {
     "type": "message",
     "text": f"🌡 東京 明日の最高暑さ指数：{wbgt}"
 }
-
-print("WEBHOOK_URL:", WEBHOOK_URL)
 
 if not WEBHOOK_URL:
     print("Webhook URL未設定")
