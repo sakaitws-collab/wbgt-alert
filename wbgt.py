@@ -2,57 +2,34 @@ import requests
 from bs4 import BeautifulSoup
 import os
 
-# ===== 設定 =====
-URL = "https://www.wbgt.env.go.jp/graph_ref_tm.php?region=03&prefecture=44&point=44132&refId=3"
-
-# ✅ GitHub Secretsから取得
+URL = "https://www.wbgt.env.go.jp/wbgt_data.php"
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
-
-# ===== WBGT取得 =====
 def get_wbgt():
     res = requests.get(URL)
     soup = BeautifulSoup(res.text, "html.parser")
 
-    rows = soup.find_all("tr")
+    # ===== 一番下の表 =====
+    tables = soup.find_all("table")
+    table = tables[-1]
 
-    tomorrow_values = []
+    # ===== 東京の行を探す =====
+    for row in table.find_all("tr"):
+        cols = row.find_all("td")
 
-    for i, row in enumerate(rows):
-        if "明日" in row.get_text():
-            # 明日の数値は次の行
-            next_row = rows[i + 1]
-            cols = next_row.find_all("td")
+        if cols:
+            place = cols[0].get_text(strip=True)
 
-            for col in cols:
-                raw_text = col.get_text(strip=True)
+            if "東京" in place:
+                # ✅ 2列目（翌日）
+                raw = cols[1].get_text(strip=True)
 
-                # 数字だけ抜く
-                digits = "".join([c for c in raw_text if c.isdigit()])
+                try:
+                    return float(raw)
+                except:
+                    return None
 
-                # 2桁ずつ分割
-                split_vals = [digits[i:i+2] for i in range(0, len(digits), 2)]
-
-                for v in split_vals:
-                    try:
-                        val = float(v)
-                        # WBGTとしてあり得る範囲だけ
-                        if 10 <= val <= 40:
-                            tomorrow_values.append(val)
-                    except:
-                        pass
-
-            break
-
-    # ✅ 最初の8個だけ使う
-    tomorrow_values = tomorrow_values[:8]
-
-    print("明日のWBGT:", tomorrow_values)
-
-    if not tomorrow_values:
-        return None
-
-    return max(tomorrow_values)
+    return None
 
 
 # ===== 実行 =====
@@ -62,10 +39,10 @@ if wbgt is None:
     print("WBGT取得失敗")
     exit()
 
-print("最大WBGT:", wbgt)
+print("明日の最高暑さ指数:", wbgt)
 
 
-# ===== Teams通知 =====
+# ===== 通知 =====
 payload = {
     "type": "message",
     "attachments": [
@@ -77,9 +54,14 @@ payload = {
                 "body": [
                     {
                         "type": "TextBlock",
-                        "text": f"🌡 明日のWBGT最大：{wbgt}",
+                        "text": "🌡明日の最高暑さ指数",
                         "size": "Large",
                         "weight": "Bolder"
+                    },
+                    {
+                        "type": "TextBlock",
+                        "text": f"東京 明日の最高暑さ指数：{wbgt}",
+                        "size": "Medium"
                     }
                 ]
             }
