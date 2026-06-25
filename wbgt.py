@@ -13,28 +13,28 @@ def get_tomorrow_max_wbgt():
 
     rows = soup.find_all("tr")
 
-    # ✅ 明日の日付を作る（例: 6月26日）
+    # ✅ 明日の日付
     tomorrow = datetime.now() + timedelta(days=1)
-    target_str = f"{tomorrow.month}月{tomorrow.day}日"
+    target_str = f"明日({tomorrow.month}月{tomorrow.day}日)"
 
     values = []
     collecting = False
 
     for row in rows:
-        text = row.get_text()
+        text = row.get_text(strip=True)
 
-        # ✅ 明日のブロック開始
+        # ✅ 完全一致で明日スタート
         if target_str in text:
             collecting = True
-            print("明日ブロック開始:", text)
+            print("✅ 明日ブロック開始:", text)
             continue
 
-        # ✅ 次の日付が来たら終了
-        if collecting and ("月" in text and "日" in text):
-            print("次の日付検出 → 終了:", text)
+        # ✅ 明後日が来たら終了
+        if collecting and "明後日" in text:
+            print("✅ 明日ブロック終了:", text)
             break
 
-        # ✅ 明日のデータ収集
+        # ✅ データ行だけ拾う
         if collecting:
             cols = row.find_all("td")
 
@@ -43,7 +43,7 @@ def get_tomorrow_max_wbgt():
 
                 try:
                     val = float(raw)
-                    if 10 <= val <= 40:  # WBGTの正常範囲
+                    if 10 <= val <= 40:
                         values.append(val)
                 except:
                     pass
@@ -68,7 +68,7 @@ if wbgt is None:
 # ===== 通知 =====
 payload = {
     "type": "message",
-    "text": f"🌡 東京 明日の最高暑さ指数：{wbgt}"
+    "text": f"🌡 東京 明日の最高WBGT：{wbgt}"
 }
 
 if not WEBHOOK_URL:
