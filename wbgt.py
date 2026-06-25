@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import os
+import re
 
 URL = "https://www.wbgt.env.go.jp/graph_ref_td.php?region=03&prefecture=44&point=44132&refId=3"
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
@@ -11,42 +12,43 @@ def get_tomorrow_max_wbgt():
     res = requests.get(URL)
     soup = BeautifulSoup(res.text, "html.parser")
 
-    rows = soup.find_all("tr")
+    # ✅ ページ全体のテキストを取得
+    text = soup.get_text()
 
     # ✅ 明日の日付
     tomorrow = datetime.now() + timedelta(days=1)
-    target_str = f"明日({tomorrow.month}月{tomorrow.day}日)"
+    target = f"明日({tomorrow.month}月{tomorrow.day}日)"
+
+    # ✅ 明日ブロック抽出
+    start_index = text.find(target)
+
+    if start_index == -1:
+        print("明日が見つからない")
+        return None
+
+    # 次の「明後日」で終了
+    end_index = text.find("明後日", start_index)
+
+    if end_index == -1:
+        print("明後日が見つからない")
+        return None
+
+    block = text[start_index:end_index]
+
+    print("抽出ブロック:", block)
+
+    # ✅ 数値抽出（WBGTっぽいものだけ）
+    numbers = re.findall(r'\d+\.\d+|\d+', block)
 
     values = []
-    collecting = False
 
-    for row in rows:
-        text = row.get_text(strip=True)
-
-        # ✅ 完全一致で明日スタート
-        if target_str in text:
-            collecting = True
-            print("✅ 明日ブロック開始:", text)
-            continue
-
-        # ✅ 明後日が来たら終了
-        if collecting and "明後日" in text:
-            print("✅ 明日ブロック終了:", text)
-            break
-
-        # ✅ データ行だけ拾う
-        if collecting:
-            cols = row.find_all("td")
-
-            if len(cols) >= 2:
-                raw = cols[1].get_text(strip=True)
-
-                try:
-                    val = float(raw)
-                    if 10 <= val <= 40:
-                        values.append(val)
-                except:
-                    pass
+    for n in numbers:
+        try:
+            val = float(n)
+            if 10 <= val <= 40:
+                values.append(val)
+        except:
+            pass
 
     print("明日のWBGT一覧:", values)
 
