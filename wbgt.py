@@ -67,17 +67,27 @@ if wbgt is None:
     exit()
 
 
-# ===== 通知 =====
+# ===== Teams通知 =====
 payload = {
     "type": "message",
-    "text": f"🌡 東京 明日の最高WBGT：{wbgt}"
+    "attachments": [
+        {
+            "contentType": "application/vnd.microsoft.card.adaptive",
+            "content": {
+                "type": "AdaptiveCard",
+                "version": "1.2",
+                "body": [
+                    {
+                        "type": "TextBlock",
+                        "text": f"🌡 明日のWBGT最大：{wbgt}",
+                        "size": "Large",
+                        "weight": "Bolder"
+                    }
+                ]
+            }
+        }
+    ]
 }
 
-if not WEBHOOK_URL:
-    print("Webhook URL未設定")
-    exit()
-
 response = requests.post(WEBHOOK_URL, json=payload)
-
 print("status:", response.status_code)
-print("response:", response.text)
