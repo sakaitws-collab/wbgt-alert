@@ -5,69 +5,72 @@ import os
 URL = "https://www.wbgt.env.go.jp/wbgt_data.php"
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
+
 def get_wbgt():
     res = requests.get(URL)
     soup = BeautifulSoup(res.text, "html.parser")
 
-    # ===== 一番下の表 =====
     tables = soup.find_all("table")
-    table = tables[-1]
 
-    # ===== 東京の行を探す =====
-    for row in table.find_all("tr"):
-        cols = row.find_all("td")
+    # ✅ 全テーブルから東京を探す
+    for table in tables:
+        for row in table.find_all("tr"):
+            cols = row.find_all("td")
 
-        if cols:
+            if len(cols) < 2:
+                continue
+
             place = cols[0].get_text(strip=True)
 
+            # ✅ 東京行を検出
             if "東京" in place:
-                # ✅ 2列目（翌日）
-                raw = cols[1].get_text(strip=True)
+                values = [c.get_text(strip=True) for c in cols]
 
+                print("東京行の中身:", values)
+
+                # ✅ 2列目（翌日）
+                raw = values[1]
+                print("翌日WBGT(raw):", raw)
+
+                # ✅ 空データ対応
+                if raw in ["", "--"]:
+                    print("データなし（未公開）")
+                    return None
+
+                # ✅ 数値変換
                 try:
                     return float(raw)
                 except:
+                    print("数値変換失敗:", raw)
                     return None
 
+    print("東京が見つからない")
     return None
 
 
 # ===== 実行 =====
 wbgt = get_wbgt()
+print("WBGT:", wbgt)
 
 if wbgt is None:
-    print("WBGT取得失敗")
+    print("WBGT取得失敗 → 通知しない")
     exit()
-
-print("明日の最高暑さ指数:", wbgt)
 
 
 # ===== 通知 =====
 payload = {
     "type": "message",
-    "attachments": [
-        {
-            "contentType": "application/vnd.microsoft.card.adaptive",
-            "content": {
-                "type": "AdaptiveCard",
-                "version": "1.2",
-                "body": [
-                    {
-                        "type": "TextBlock",
-                        "text": "🌡明日の最高暑さ指数",
-                        "size": "Large",
-                        "weight": "Bolder"
-                    },
-                    {
-                        "type": "TextBlock",
-                        "text": f"東京 明日の最高暑さ指数：{wbgt}",
-                        "size": "Medium"
-                    }
-                ]
-            }
-        }
-    ]
+    "text": f"🌡 東京 明日の最高暑さ指数：{wbgt}"
 }
 
+print("WEBHOOK_URL:", WEBHOOK_URL)
+
+if not WEBHOOK_URL:
+    print("Webhook URL未設定")
+    exit()
+
 response = requests.post(WEBHOOK_URL, json=payload)
+
 print("status:", response.status_code)
+print("response:", response.text)
+``
